@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Trading Bot Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:        #0a0c0f;
+      --surface:   #111318;
+      --border:    #1e2330;
+      --text:      #c8cdd8;
+      --muted:     #4a5068;
+      --green:     #00e676;
+      --green-dim: #1a3d28;
+      --red:       #ff4560;
+      --red-dim:   #3d1a1f;
+      --amber:     #ffc107;
+      --amber-dim: #3d2e00;
+      --blue:      #4fc3f7;
+      --blue-dim:  #0d2a3a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    .logo h1 {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: #fff;
+    }
+
+    .logo span {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .last-updated {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    #last-updated-time { color: var(--amber); }
+
+    .refresh-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      padding: 7px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .refresh-btn:hover {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .refresh-btn.spinning svg {
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── COUNTDOWN BAR ── */
+    .countdown-bar {
+      height: 2px;
+      background: var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .countdown-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--green), var(--blue));
+      transition: width 1s linear;
+    }
+
+    /* ── LAYOUT ── */
+    main {
+      padding: 28px 32px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── ACCOUNT CARDS ── */
+    .account-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px 24px;
+    }
+
+    .card-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .card-value {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 26px;
+      font-weight: 500;
+      color: #fff;
+    }
+
+    .card-value.green { color: var(--green); }
+    .card-value.red   { color: var(--red); }
+
+    /* ── RSI GRID ── */
+    .rsi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .rsi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .rsi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+
+    .rsi-card.buy::before   { background: var(--green); }
+    .rsi-card.sell::before  { background: var(--red); }
+    .rsi-card.hold::before  { background: var(--muted); }
+    .rsi-card.error::before { background: var(--amber); }
+
+    .rsi-symbol {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .rsi-price {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .rsi-bar-wrap {
+      background: var(--border);
+      border-radius: 2px;
+      height: 4px;
+      margin-bottom: 8px;
+      position: relative;
+    }
+
+    .rsi-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.6s ease;
+    }
+
+    .rsi-bar-fill.buy  { background: var(--green); }
+    .rsi-bar-fill.sell { background: var(--red); }
+    .rsi-bar-fill.hold { background: var(--blue); }
+
+    /* zone markers at 30 and 70 */
+    .rsi-bar-wrap::before,
+    .rsi-bar-wrap::after {
+      content: '';
+      position: absolute;
+      top: -3px; bottom: -3px;
+      width: 1px;
+      background: var(--muted);
+      opacity: 0.5;
+    }
+    .rsi-bar-wrap::before { left: 30%; }
+    .rsi-bar-wrap::after  { left: 70%; }
+
+    .rsi-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .rsi-number {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 22px;
+      font-weight: 500;
+    }
+
+    .rsi-number.buy  { color: var(--green); }
+    .rsi-number.sell { color: var(--red); }
+    .rsi-number.hold { color: var(--text); }
+
+    .signal-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      padding: 4px 10px;
+      border-radius: 3px;
+    }
+
+    .signal-badge.buy  { background: var(--green-dim); color: var(--green); }
+    .signal-badge.sell { background: var(--red-dim);   color: var(--red); }
+    .signal-badge.hold { background: var(--border);    color: var(--muted); }
+
+    /* ── POSITIONS ── */
+    .positions-section { margin-bottom: 32px; }
+
+    .empty-state {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 32px;
+      text-align: center;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    th {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      background: #0d0f14;
+    }
+
+    td {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #13161e; }
+
+    td.green { color: var(--green); }
+    td.red   { color: var(--red); }
+    td.amber { color: var(--amber); }
+    td.sym   { color: #fff; font-weight: 500; }
+
+    /* ── LOG TABLE ── */
+    .action-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 3px 8px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    .action-badge.buy          { background: var(--green-dim); color: var(--green); }
+    .action-badge.sell         { background: var(--red-dim);   color: var(--red); }
+    .action-badge.hold         { background: var(--border);    color: var(--muted); }
+    .action-badge.rejected_by_ai { background: var(--amber-dim); color: var(--amber); }
+
+    .claude-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    .claude-badge.approve { background: var(--green-dim); color: var(--green); }
+    .claude-badge.reject  { background: var(--red-dim);   color: var(--red); }
+    .claude-badge.na      { background: var(--border);    color: var(--muted); }
+
+    /* ── BOTTOM GRID ── */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .rsi-grid     { grid-template-columns: 1fr 1fr; }
+      .account-row  { grid-template-columns: 1fr 1fr; }
+      .bottom-grid  { grid-template-columns: 1fr; }
+    }
+
+    /* ── LOADING OVERLAY ── */
+    .loading {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    /* ── SCROLL ── */
+    .table-wrap {
+      max-height: 340px;
+      overflow-y: auto;
+      border-radius: 6px;
+    }
+
+    .table-wrap::-webkit-scrollbar { width: 4px; }
+    .table-wrap::-webkit-scrollbar-track { background: var(--bg); }
+    .table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <div>
+      <h1>TRADING BOT</h1>
+      <span>Paper Trading · Alpaca · Claude AI</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="last-updated">
+      Updated <span id="last-updated-time">--:--:--</span>
+      &nbsp;·&nbsp; next refresh <span id="countdown">60</span>s
+    </span>
+    <button class="refresh-btn" onclick="fetchData()" id="refresh-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+      </svg>
+      Refresh
+    </button>
+  </div>
+</header>
+
+<div class="countdown-bar">
+  <div class="countdown-fill" id="countdown-fill" style="width:100%"></div>
+</div>
+
+<main>
+
+  <!-- ACCOUNT -->
+  <div class="section-title">Account Overview</div>
+  <div class="account-row" id="account-row">
+    <div class="card">
+      <div class="card-label">Cash Available</div>
+      <div class="card-value" id="acct-cash">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Total Equity</div>
+      <div class="card-value" id="acct-equity">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Today's P&L</div>
+      <div class="card-value" id="acct-pl">—</div>
+    </div>
+  </div>
+
+  <!-- RSI -->
+  <div class="section-title">Live RSI Signals</div>
+  <div class="rsi-grid" id="rsi-grid">
+    <!-- filled by JS -->
+  </div>
+
+  <!-- POSITIONS -->
+  <div class="positions-section">
+    <div class="section-title">Open Positions</div>
+    <div id="positions-container"></div>
+  </div>
+
+  <!-- BOTTOM: Trade Log + Claude Log -->
+  <div class="bottom-grid">
+    <div>
+      <div class="section-title">Trade History</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Symbol</th>
+              <th>Price</th>
+              <th>RSI</th>
+              <th>Action</th>
+              <th>Qty</th>
+            </tr>
+          </thead>
+          <tbody id="trade-log">
+            <tr><td colspan="6" style="color:var(--muted);text-align:center">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Claude AI Decisions</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Symbol</th>
+              <th>RSI</th>
+              <th>Claude</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody id="claude-log">
+            <tr><td colspan="5" style="color:var(--muted);text-align:center">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  let countdown = 60;
+  let countdownInterval;
+
+  function fmt(n) {
+    // format a number with $ and commas
+    return '$' + parseFloat(n).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  }
+
+  function rsiClass(signal) {
+    return signal.toLowerCase();
+  }
+
+  function renderAccount(acct) {
+    document.getElementById('acct-cash').textContent   = fmt(acct.cash);
+    document.getElementById('acct-equity').textContent = fmt(acct.equity);
+
+    const plEl  = document.getElementById('acct-pl');
+    const pl    = acct.pl_today;
+    plEl.textContent = (pl >= 0 ? '+' : '') + fmt(pl);
+    plEl.className   = 'card-value ' + (pl >= 0 ? 'green' : 'red');
+  }
+
+  function renderRSI(rsiList) {
+    const grid = document.getElementById('rsi-grid');
+    grid.innerHTML = rsiList.map(s => {
+      const cls     = rsiClass(s.signal);
+      const barPct  = Math.min(100, Math.max(0, s.rsi));
+      return `
+        <div class="rsi-card ${cls}">
+          <div class="rsi-symbol">${s.symbol}</div>
+          <div class="rsi-price">\$${s.price.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+          <div class="rsi-bar-wrap">
+            <div class="rsi-bar-fill ${cls}" style="width:${barPct}%"></div>
+          </div>
+          <div class="rsi-row">
+            <div class="rsi-number ${cls}">${s.rsi}</div>
+            <div class="signal-badge ${cls}">${s.signal}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderPositions(positions) {
+    const container = document.getElementById('positions-container');
+    if (positions.length === 0) {
+      container.innerHTML = `<div class="empty-state">No open positions</div>`;
+      return;
+    }
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th><th>Qty</th><th>Entry</th>
+            <th>Current</th><th>P&L</th><th>P&L %</th>
+            <th>Stop Loss</th><th>Take Profit</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${positions.map(p => {
+            const plCls = p.pl >= 0 ? 'green' : 'red';
+            return `
+              <tr>
+                <td class="sym">${p.symbol}</td>
+                <td>${p.qty}</td>
+                <td>${fmt(p.entry)}</td>
+                <td>${fmt(p.price)}</td>
+                <td class="${plCls}">${p.pl >= 0 ? '+' : ''}${fmt(p.pl)}</td>
+                <td class="${plCls}">${p.pl_pct >= 0 ? '+' : ''}${p.pl_pct.toFixed(2)}%</td>
+                <td class="red">${fmt(p.stop_loss)}</td>
+                <td class="green">${fmt(p.take_profit)}</td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  function renderTradeLog(log) {
+    const tbody = document.getElementById('trade-log');
+    // only show rows where action is BUY or SELL
+    const trades = log.filter(r => r.action === 'BUY' || r.action === 'SELL');
+    if (trades.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="color:var(--muted);text-align:center">No trades yet</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = trades.map(r => `
+      <tr>
+        <td style="color:var(--muted)">${r.timestamp.split(' ')[1]}</td>
+        <td class="sym">${r.symbol}</td>
+        <td>$${parseFloat(r.price).toFixed(2)}</td>
+        <td>${r.rsi}</td>
+        <td><span class="action-badge ${r.action.toLowerCase()}">${r.action}</span></td>
+        <td>${r.qty || '—'}</td>
+      </tr>`).join('');
+  }
+
+  function renderClaudeLog(log) {
+    const tbody = document.getElementById('claude-log');
+    // only show rows where Claude was consulted (BUY signal happened)
+    const aiRows = log.filter(r => r.claude === 'APPROVE' || r.claude === 'REJECT');
+    if (aiRows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="color:var(--muted);text-align:center">No AI decisions yet</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = aiRows.map(r => `
+      <tr>
+        <td style="color:var(--muted)">${r.timestamp.split(' ')[1]}</td>
+        <td class="sym">${r.symbol}</td>
+        <td>${r.rsi}</td>
+        <td><span class="claude-badge ${r.claude.toLowerCase()}">${r.claude}</span></td>
+        <td><span class="action-badge ${r.action.toLowerCase()}">${r.action}</span></td>
+      </tr>`).join('');
+  }
+
+  async function fetchData() {
+    const btn = document.getElementById('refresh-btn');
+    btn.classList.add('spinning');
+
+    try {
+      const res  = await fetch('/api/data');
+      const data = await res.json();
+
+      renderAccount(data.account);
+      renderRSI(data.rsi);
+      renderPositions(data.positions);
+      renderTradeLog(data.log);
+      renderClaudeLog(data.log);
+
+      document.getElementById('last-updated-time').textContent = data.updated;
+
+      // Reset countdown
+      countdown = 60;
+    } catch(e) {
+      console.error('Fetch error:', e);
+    } finally {
+      btn.classList.remove('spinning');
+    }
+  }
+
+  function startCountdown() {
+    const fill = document.getElementById('countdown-fill');
+    const text = document.getElementById('countdown');
+
+    countdownInterval = setInterval(() => {
+      countdown--;
+      text.textContent  = countdown;
+      fill.style.width  = (countdown / 60 * 100) + '%';
+
+      if (countdown <= 0) {
+        countdown = 60;
+        fetchData();
+      }
+    }, 1000);
+  }
+
+  // Start
+  fetchData();
+  startCountdown();
+</script>
+</body>
+</html>
