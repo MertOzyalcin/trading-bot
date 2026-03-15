@@ -81,6 +81,8 @@ trading-bot/
 
 ---
 
+> 📋 **Detailed setup guide:** [SETUP.md](SETUP.md)
+
 ## 🚀 Quick Start
 
 ### 1. Clone the repository
