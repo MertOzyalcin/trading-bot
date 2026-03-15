@@ -4,8 +4,8 @@
 #
 # Project structure:
 #   bot.py        ← you are here (runs the bot)
-#   config.py     ← all settings (watchlist, risk %, schedule time, etc.)
-#   strategy.py   ← RSI signal + Claude AI analysis
+#   config.py     ← all settings (watchlist, risk %, thresholds, etc.)
+#   strategy.py   ← RSI signals (daily + weekly + hourly) + Claude AI
 #   orders.py     ← placing and closing orders
 #   safety.py     ← all safety checks
 #   logger.py     ← CSV logging
@@ -14,7 +14,7 @@
 
 from datetime import datetime
 from config   import WATCHLIST, RUN_TIME
-from strategy import get_closes, get_signal, claude_approves
+from strategy import get_closes, get_signal, passes_mtf_filter, claude_approves
 from orders   import get_qty, has_position, place_bracket_order, close_position
 from safety   import run_global_safety_checks, run_stock_safety_checks
 from logger   import setup_log, write_log
@@ -26,27 +26,27 @@ import schedule, time
 # ══════════════════════════════════════════════════════════════════════════════
 
 def run_bot():
-    print(f"\n🤖 [{datetime.now():%H:%M:%S}] Bot v6 — Running safety checks...")
+    print(f"\n🤖 [{datetime.now():%H:%M:%S}] Bot v7 — Multi-Timeframe RSI")
     print(f"{'─' * 50}")
 
     # ── STEP 1: GLOBAL SAFETY CHECKS ──────────────────────────────────────────
-    # Checks that apply to ALL stocks.
-    # If any fail, the entire scan is blocked — no orders placed today.
+    # Holidays, FOMC, CPI, market hours, SPY freefall
+    # If any fail → block the entire scan
     safe, reason = run_global_safety_checks()
     if not safe:
         print(f"\n🛑 TRADING BLOCKED — {reason}")
-        print(f"   No orders will be placed. Trying again next scheduled run.")
+        print(f"   Trying again next scheduled run.")
         print(f"{'─' * 50}")
         return
 
-    print(f"✅ All global checks passed — scanning {len(WATCHLIST)} stocks...")
+    print(f"✅ Global checks passed — scanning {len(WATCHLIST)} stocks...")
     print(f"{'─' * 50}")
 
     # ── STEP 2: SCAN EACH STOCK ───────────────────────────────────────────────
     for symbol in WATCHLIST:
         print(f"\n📊 {symbol}")
         try:
-            # Fetch price data and calculate RSI signal
+            # Fetch daily closes and calculate primary RSI signal
             closes          = get_closes(symbol)
             signal, rsi_val = get_signal(closes)
             price           = float(closes.iloc[-1])
@@ -59,8 +59,10 @@ def run_bot():
             # ── BUY LOGIC ─────────────────────────────────────────────────────
             if signal == "BUY" and not holding:
 
-                # Step 2a: Stock-level safety checks
-                # (single-day crash check + earnings check)
+                # Gate 1 passed: daily RSI < 30 ✅
+                # Now run remaining checks in order:
+
+                # Gate 2 + 3: Stock-level safety (crash + earnings)
                 stock_safe, skip_reason = run_stock_safety_checks(symbol, closes)
                 if not stock_safe:
                     print(f"  🛑 SKIPPED — {skip_reason}")
@@ -68,12 +70,23 @@ def run_bot():
                               "N/A", "SKIPPED", skip_reason=skip_reason)
                     continue
 
-                # Step 2b: Claude AI second opinion
+                # Gate 4 + 5: Multi-timeframe RSI filter (weekly + hourly)
+                # This is the new check — both must agree before proceeding
+                mtf_passed, mtf_reason = passes_mtf_filter(symbol)
+                if not mtf_passed:
+                    print(f"  📊 MTF FILTER FAILED — {mtf_reason}")
+                    write_log(symbol, price, rsi_val, signal, holding,
+                              "N/A", "MTF_FILTERED", skip_reason=mtf_reason)
+                    continue
+
+                print(f"  ✅ All 3 timeframes agree — strong signal!")
+
+                # Gate 6: Claude AI final judgment
                 print(f"  🔍 Asking Claude for analysis...")
                 approved, claude_response = claude_approves(symbol, rsi_val, closes)
 
                 if approved:
-                    # All checks passed — place the trade
+                    # All 6 gates passed — this is a high-confidence trade
                     qty = get_qty(price)
                     stop, profit = place_bracket_order(symbol, qty, price)
                     write_log(symbol, price, rsi_val, signal, holding,
@@ -85,8 +98,8 @@ def run_bot():
 
             # ── SELL LOGIC ────────────────────────────────────────────────────
             elif signal == "SELL" and holding:
-                # Safety checks don't block sells
-                # Always exit a position when the signal says overbought
+                # Safety checks don't apply to sells
+                # Always exit when daily RSI says overbought
                 close_position(symbol)
                 write_log(symbol, price, rsi_val, signal, holding,
                           "N/A", "SELL")
@@ -105,7 +118,7 @@ def run_bot():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SCHEDULE — runs Monday–Friday at RUN_TIME (set in config.py)
+# SCHEDULE — Monday–Friday at RUN_TIME (set in config.py)
 # ══════════════════════════════════════════════════════════════════════════════
 
 schedule.every().monday.at(RUN_TIME).do(run_bot)
@@ -119,12 +132,12 @@ schedule.every().friday.at(RUN_TIME).do(run_bot)
 # START
 # ══════════════════════════════════════════════════════════════════════════════
 
-print("🟢 Bot v6 started!")
-print(f"   Watching:      {', '.join(WATCHLIST)}")
-print(f"   Risk/trade:    2% | Stop: -5% | Target: +10%")
-print(f"   AI analysis:   ✅ Claude-powered")
-print(f"   Safety checks: ✅ Holidays / FOMC / CPI / Crash / Earnings / Hours")
-print(f"   Scheduled:     {RUN_TIME} Istanbul time")
+print("🟢 Bot v7 started — Multi-Timeframe RSI!")
+print(f"   Watching:       {', '.join(WATCHLIST)}")
+print(f"   Risk/trade:     2% | Stop: -5% | Target: +10%")
+print(f"   Entry gates:    Daily RSI<30 → Weekly RSI<50 → Hourly RSI<40 → Claude")
+print(f"   Safety checks:  ✅ Holidays / FOMC / CPI / Crash / Earnings / Hours")
+print(f"   Scheduled:      {RUN_TIME} Istanbul time")
 print(f"   (Press Ctrl+C to stop)\n")
 
 setup_log()
