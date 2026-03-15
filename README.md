@@ -14,7 +14,7 @@
 
 | Dashboard | Strategy Lab | Learn Page |
 |---|---|---|
-| Live RSI signals, positions, P&L | Backtest any strategy with equity curve | Full trading education |
+| ![Dashboard](screenshots/dashboard.png) | ![Lab](screenshots/lab.png) | ![Learn](screenshots/learn.png) |
 
 ---
 
