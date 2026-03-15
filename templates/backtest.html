@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Strategy Lab — Trading Bot</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:        #0a0c0f;
+      --surface:   #111318;
+      --surface2:  #0d0f14;
+      --border:    #1e2330;
+      --text:      #c8cdd8;
+      --muted:     #4a5068;
+      --green:     #00e676;
+      --green-dim: #1a3d28;
+      --red:       #ff4560;
+      --red-dim:   #3d1a1f;
+      --amber:     #ffc107;
+      --amber-dim: #3d2e00;
+      --blue:      #4fc3f7;
+      --blue-dim:  #0d2a3a;
+      --purple:    #ce93d8;
+      --purple-dim:#2a1a3a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--purple);
+      box-shadow: 0 0 8px var(--purple);
+    }
+
+    .logo h1 {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: #fff;
+    }
+
+    .logo span {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .nav-link {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      padding: 7px 16px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--green);
+      border-color: var(--green);
+    }
+
+    /* ── LAYOUT ── */
+    .page {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 0;
+      height: calc(100vh - 61px);
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .field-group { display: flex; flex-direction: column; gap: 8px; }
+
+    label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    input[type="text"], select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: #fff;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      padding: 10px 12px;
+      border-radius: 4px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus, select:focus {
+      border-color: var(--purple);
+    }
+
+    select option { background: #1a1d26; }
+
+    /* ── PERIOD PILLS ── */
+    .period-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .pill:hover { border-color: var(--text); color: var(--text); }
+
+    .pill.active {
+      background: var(--purple-dim);
+      border-color: var(--purple);
+      color: var(--purple);
+    }
+
+    /* ── STRATEGY DESCRIPTION ── */
+    .strategy-desc {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      min-height: 48px;
+      transition: opacity 0.2s;
+    }
+
+    /* ── CODE EDITOR AREA ── */
+    .code-section {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .code-section.visible { display: flex; }
+
+    .ai-prompt-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .ai-prompt-row input {
+      flex: 1;
+    }
+
+    .btn-ai {
+      background: var(--purple-dim);
+      border: 1px solid var(--purple);
+      color: var(--purple);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 10px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-ai:hover { background: #3d2a50; }
+    .btn-ai:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    textarea {
+      background: #0a0c0f;
+      border: 1px solid var(--border);
+      color: #a8d8a8;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      padding: 12px;
+      border-radius: 4px;
+      width: 100%;
+      height: 220px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus { border-color: var(--purple); }
+
+    .code-hint {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    /* ── RUN BUTTON ── */
+    .btn-run {
+      background: var(--green-dim);
+      border: 1px solid var(--green);
+      color: var(--green);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      padding: 13px;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-run:hover { background: #1f4d32; }
+    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-run.loading { opacity: 0.7; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 0.8s linear infinite; display: inline-block; }
+
+    /* ── MAIN CONTENT ── */
+    .main {
+      overflow-y: auto;
+      padding: 28px 32px;
+    }
+
+    .main::-webkit-scrollbar { width: 4px; }
+    .main::-webkit-scrollbar-track { background: transparent; }
+    .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--muted);
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      opacity: 0.3;
+    }
+
+    .empty-state p {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+    }
+
+    /* ── ERROR STATE ── */
+    .error-box {
+      background: var(--red-dim);
+      border: 1px solid var(--red);
+      border-radius: 6px;
+      padding: 16px 20px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      color: var(--red);
+      margin-bottom: 24px;
+    }
+
+    /* ── RESULTS ── */
+    .results { display: none; flex-direction: column; gap: 28px; }
+    .results.visible { display: flex; }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .result-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .result-meta {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .result-meta span { color: var(--purple); }
+
+    /* ── STAT CARDS ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+    }
+
+    .stat-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 20px;
+      font-weight: 500;
+      color: #fff;
+    }
+
+    .stat-value.green   { color: var(--green); }
+    .stat-value.red     { color: var(--red); }
+    .stat-value.amber   { color: var(--amber); }
+    .stat-value.blue    { color: var(--blue); }
+    .stat-value.purple  { color: var(--purple); }
+
+    .beat-badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-top: 4px;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .beat-badge.yes { background: var(--green-dim); color: var(--green); }
+    .beat-badge.no  { background: var(--red-dim);   color: var(--red); }
+
+    /* ── CHART ── */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
+    }
+
+    .chart-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .chart-wrap { position: relative; height: 280px; }
+
+    /* ── SECTION TITLE ── */
+    .section-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── TRADES TABLE ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    th {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+
+    td {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #13161e; }
+    td.green { color: var(--green); }
+    td.red   { color: var(--red); }
+
+    .no-trades {
+      text-align: center;
+      color: var(--muted);
+      padding: 24px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+    }
+
+    /* ── DISCLAIMER ── */
+    .disclaimer {
+      background: var(--amber-dim);
+      border: 1px solid #5a4400;
+      border-radius: 6px;
+      padding: 14px 18px;
+      font-size: 12px;
+      color: #a88000;
+      line-height: 1.5;
+    }
+
+    .disclaimer strong { color: var(--amber); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon"></div>
+    <div>
+      <h1>STRATEGY LAB</h1>
+      <span>Backtest · Analyze · Optimize</span>
+    </div>
+  </div>
+  <a href="/learn" class="nav-link">📖 Learn</a>
+  <a href="/" class="nav-link">← Dashboard</a>
+</header>
+
+<div class="page">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+
+    <!-- Symbol -->
+    <div class="field-group">
+      <label>Stock Symbol</label>
+      <input type="text" id="symbol" value="AAPL" placeholder="AAPL, TSLA, MSFT..."/>
+    </div>
+
+    <!-- Period -->
+    <div class="field-group">
+      <label>Time Period</label>
+      <div class="period-pills">
+        <button class="pill" data-period="1mo">1M</button>
+        <button class="pill" data-period="3mo">3M</button>
+        <button class="pill" data-period="6mo">6M</button>
+        <button class="pill active" data-period="1y">1Y</button>
+        <button class="pill" data-period="2y">2Y</button>
+        <button class="pill" data-period="5y">5Y</button>
+      </div>
+    </div>
+
+    <!-- Strategy -->
+    <div class="field-group">
+      <label>Strategy</label>
+      <select id="strategy-select" onchange="onStrategyChange()">
+        <optgroup label="Built-in Strategies">
+          <option value="rsi">RSI Mean Reversion</option>
+          <option value="macd">MACD Crossover</option>
+          <option value="ma_cross">Moving Average Crossover</option>
+          <option value="bollinger">Bollinger Bands</option>
+        </optgroup>
+        <optgroup label="Custom">
+          <option value="custom">Paste Your Own Strategy</option>
+          <option value="ai">✨ Generate with AI</option>
+        </optgroup>
+      </select>
+      <div class="strategy-desc" id="strategy-desc">
+        Buy when RSI drops below 30 (oversold). Sell when RSI rises above 70 (overbought). Works well on stable stocks like AAPL and MSFT.
+      </div>
+    </div>
+
+    <!-- Code section (custom / AI) -->
+    <div class="code-section" id="code-section">
+
+      <!-- AI prompt row — only shown when AI selected -->
+      <div id="ai-prompt-row" style="display:none">
+        <label>Describe your strategy to Claude</label>
+        <div class="ai-prompt-row" style="margin-top:8px">
+          <input type="text" id="ai-prompt" placeholder="e.g. Buy when RSI < 40 and MACD is bullish"/>
+          <button class="btn-ai" id="btn-generate" onclick="generateStrategy()">
+            <span id="gen-icon">✨</span> Generate
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label>Strategy Code</label>
+        <textarea id="code-editor" spellcheck="false" placeholder="class CustomStrategy(Strategy):
+    def init(self):
+        pass
+
+    def next(self):
+        pass"></textarea>
+        <div class="code-hint">Class must be named CustomStrategy</div>
+      </div>
+    </div>
+
+    <!-- Run button -->
+    <button class="btn-run" id="btn-run" onclick="runBacktest()">
+      <span id="run-icon">▶</span>
+      <span id="run-label">Run Backtest</span>
+    </button>
+
+    <!-- Disclaimer -->
+    <div class="disclaimer">
+      <strong>⚠️ Paper trading only.</strong> Past performance does not guarantee future results. Never risk money you cannot afford to lose.
+    </div>
+
+  </aside>
+
+  <!-- ── MAIN CONTENT ── -->
+  <main class="main" id="main-content">
+
+    <!-- Empty state -->
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">🔬</div>
+      <p>Configure a strategy and click Run Backtest</p>
+      <p style="font-size:11px; margin-top:4px">Results will appear here</p>
+    </div>
+
+    <!-- Error box -->
+    <div class="error-box" id="error-box" style="display:none"></div>
+
+    <!-- Results -->
+    <div class="results" id="results">
+
+      <div class="result-header">
+        <div class="result-title" id="result-title">AAPL · RSI Strategy · 1Y</div>
+        <div class="result-meta">Starting capital <span>$10,000</span> · Commission <span>0.2%</span></div>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Strategy Return</div>
+          <div class="stat-value" id="stat-return">—</div>
+          <div id="stat-beat"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Buy & Hold</div>
+          <div class="stat-value blue" id="stat-buyhold">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Trades</div>
+          <div class="stat-value purple" id="stat-trades">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Win Rate</div>
+          <div class="stat-value" id="stat-winrate">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Max Drawdown</div>
+          <div class="stat-value red" id="stat-drawdown">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Sharpe Ratio</div>
+          <div class="stat-value" id="stat-sharpe">—</div>
+        </div>
+      </div>
+
+      <!-- Equity Curve -->
+      <div class="chart-card">
+        <div class="chart-title">Equity Curve</div>
+        <div class="chart-wrap">
+          <canvas id="equity-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Trades -->
+      <div>
+        <div class="section-title">Trade History</div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Entry Date</th>
+              <th>Exit Date</th>
+              <th>P&L ($)</th>
+              <th>Return (%)</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody id="trades-body"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  // ── STATE ──────────────────────────────────────────────────────────────────
+  let selectedPeriod = "1y";
+  let equityChart    = null;
+
+  const STRATEGY_DESCRIPTIONS = {
+    rsi:       "Buy when RSI drops below 30 (oversold). Sell when RSI rises above 70 (overbought). Works well on stable stocks like AAPL and MSFT.",
+    macd:      "Buy when the MACD line crosses above the signal line (momentum turning bullish). Sell when it crosses back below. Good for trending stocks.",
+    ma_cross:  "Buy when the 50-day moving average crosses above the 200-day MA (golden cross). Sell on death cross. Best for long-term trend following.",
+    bollinger: "Buy when price touches the lower Bollinger Band (statistically cheap). Sell when it reaches the upper band. Good for mean-reverting stocks.",
+    custom:    "Paste your own backtesting.py strategy code below. The class must be named CustomStrategy.",
+    ai:        "Describe your strategy idea in plain English and Claude will generate the code for you automatically."
+  };
+
+  // ── PERIOD PILLS ──────────────────────────────────────────────────────────
+  document.querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedPeriod = btn.dataset.period;
+    });
+  });
+
+  // ── STRATEGY CHANGE ───────────────────────────────────────────────────────
+  function onStrategyChange() {
+    const val      = document.getElementById('strategy-select').value;
+    const desc     = document.getElementById('strategy-desc');
+    const codeSection = document.getElementById('code-section');
+    const aiRow    = document.getElementById('ai-prompt-row');
+
+    desc.textContent = STRATEGY_DESCRIPTIONS[val] || '';
+
+    if (val === 'custom' || val === 'ai') {
+      codeSection.classList.add('visible');
+      aiRow.style.display = val === 'ai' ? 'block' : 'none';
+    } else {
+      codeSection.classList.remove('visible');
+    }
+  }
+
+  // ── AI GENERATE ───────────────────────────────────────────────────────────
+  async function generateStrategy() {
+    const prompt  = document.getElementById('ai-prompt').value.trim();
+    const btn     = document.getElementById('btn-generate');
+    const icon    = document.getElementById('gen-icon');
+
+    if (!prompt) {
+      alert('Please describe your strategy first');
+      return;
+    }
+
+    btn.disabled  = true;
+    icon.textContent = '⟳';
+    icon.classList.add('spinner');
+
+    try {
+      const res  = await fetch('/api/generate-strategy', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json'},
+        body:    JSON.stringify({ prompt })
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        alert('Generation failed: ' + data.error);
+      } else {
+        document.getElementById('code-editor').value = data.code;
+      }
+    } catch(e) {
+      alert('Network error: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      icon.textContent = '✨';
+      icon.classList.remove('spinner');
+    }
+  }
+
+  // ── RUN BACKTEST ──────────────────────────────────────────────────────────
+  async function runBacktest() {
+    const symbol   = document.getElementById('symbol').value.trim().toUpperCase();
+    const strategy = document.getElementById('strategy-select').value;
+    const code     = document.getElementById('code-editor').value;
+    const btn      = document.getElementById('btn-run');
+    const runIcon  = document.getElementById('run-icon');
+    const runLabel = document.getElementById('run-label');
+
+    if (!symbol) { alert('Enter a stock symbol'); return; }
+
+    // Loading state
+    btn.disabled      = true;
+    btn.classList.add('loading');
+    runIcon.textContent  = '⟳';
+    runIcon.classList.add('spinner');
+    runLabel.textContent = 'Running...';
+
+    hideResults();
+    hideError();
+
+    try {
+      const res  = await fetch('/api/run-backtest', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json'},
+        body:    JSON.stringify({ symbol, period: selectedPeriod, strategy, code })
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        showError(data.error);
+      } else {
+        renderResults(data, symbol, strategy);
+      }
+    } catch(e) {
+      showError('Network error: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      runIcon.textContent = '▶';
+      runIcon.classList.remove('spinner');
+      runLabel.textContent = 'Run Backtest';
+    }
+  }
+
+  // ── RENDER RESULTS ────────────────────────────────────────────────────────
+  function renderResults(data, symbol, strategy) {
+    const { stats, equity, trades } = data;
+
+    // Title
+    const strategyNames = {
+      rsi: 'RSI', macd: 'MACD', ma_cross: 'MA Cross',
+      bollinger: 'Bollinger', custom: 'Custom', ai: 'AI Strategy'
+    };
+    document.getElementById('result-title').textContent =
+      `${symbol} · ${strategyNames[strategy] || strategy} · ${selectedPeriod.toUpperCase()}`;
+
+    // Stat cards
+    const ret = stats.return;
+    const bh  = stats.buyhold;
+    const beat = ret > bh;
+
+    const retEl = document.getElementById('stat-return');
+    retEl.textContent  = (ret >= 0 ? '+' : '') + ret.toFixed(1) + '%';
+    retEl.className    = 'stat-value ' + (ret >= 0 ? 'green' : 'red');
+
+    document.getElementById('stat-beat').innerHTML =
+      `<span class="beat-badge ${beat ? 'yes' : 'no'}">${beat ? '✅ Beat B&H' : '❌ Under B&H'}</span>`;
+
+    document.getElementById('stat-buyhold').textContent =
+      (bh >= 0 ? '+' : '') + bh.toFixed(1) + '%';
+
+    document.getElementById('stat-trades').textContent = stats.trades;
+
+    const wrEl = document.getElementById('stat-winrate');
+    wrEl.textContent = stats.winrate > 0 ? stats.winrate.toFixed(1) + '%' : 'N/A';
+    wrEl.className   = 'stat-value ' + (stats.winrate >= 50 ? 'green' : 'amber');
+
+    document.getElementById('stat-drawdown').textContent =
+      stats.maxdrawdown.toFixed(1) + '%';
+
+    const shEl = document.getElementById('stat-sharpe');
+    shEl.textContent = stats.sharpe.toFixed(2);
+    shEl.className   = 'stat-value ' + (stats.sharpe >= 1 ? 'green' : stats.sharpe >= 0.5 ? 'amber' : 'red');
+
+    // Equity chart
+    renderChart(equity, bh);
+
+    // Trades table
+    renderTrades(trades);
+
+    // Show results
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('results').classList.add('visible');
+  }
+
+  function renderChart(equity, bh) {
+    if (equityChart) {
+      equityChart.destroy();
+      equityChart = null;
+    }
+
+    const ctx    = document.getElementById('equity-chart').getContext('2d');
+    const labels = equity.map(p => p.date);
+    const values = equity.map(p => p.value);
+
+    // Buy & hold line: grow $10,000 by bh% linearly
+    const bhValues = values.map((_, i) =>
+      parseFloat((10000 * (1 + (bh / 100) * (i / (values.length - 1)))).toFixed(2))
+    );
+
+    equityChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Strategy',
+            data: values,
+            borderColor: '#00e676',
+            backgroundColor: 'rgba(0,230,118,0.06)',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: true,
+            tension: 0.3,
+          },
+          {
+            label: 'Buy & Hold',
+            data: bhValues,
+            borderColor: '#4fc3f7',
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            borderDash: [4, 4],
+            fill: false,
+            tension: 0.1,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
+        plugins: {
+          legend: {
+            labels: {
+              color: '#4a5068',
+              font: { family: 'IBM Plex Mono', size: 11 },
+              boxWidth: 16,
+            }
+          },
+          tooltip: {
+            backgroundColor: '#111318',
+            borderColor: '#1e2330',
+            borderWidth: 1,
+            titleColor: '#4a5068',
+            bodyColor: '#c8cdd8',
+            titleFont: { family: 'IBM Plex Mono', size: 10 },
+            bodyFont:  { family: 'IBM Plex Mono', size: 11 },
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: '#4a5068',
+              font: { family: 'IBM Plex Mono', size: 10 },
+              maxTicksLimit: 8,
+            },
+            grid: { color: '#1e2330' }
+          },
+          y: {
+            ticks: {
+              color: '#4a5068',
+              font: { family: 'IBM Plex Mono', size: 10 },
+              callback: v => '$' + v.toLocaleString('en-US')
+            },
+            grid: { color: '#1e2330' }
+          }
+        }
+      }
+    });
+  }
+
+  function renderTrades(trades) {
+    const tbody = document.getElementById('trades-body');
+    if (!trades || trades.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="no-trades">No trades were placed</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = trades.map((t, i) => {
+      const win = t.pnl >= 0;
+      return `
+        <tr>
+          <td style="color:var(--muted)">${i + 1}</td>
+          <td>${t.entry}</td>
+          <td>${t.exit}</td>
+          <td class="${win ? 'green' : 'red'}">${win ? '+' : ''}$${Math.abs(t.pnl).toFixed(2)}</td>
+          <td class="${win ? 'green' : 'red'}">${win ? '+' : ''}${t.return.toFixed(2)}%</td>
+          <td><span style="color:${win ? 'var(--green)' : 'var(--red)'}">${win ? 'WIN' : 'LOSS'}</span></td>
+        </tr>`;
+    }).join('');
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────────────────────
+  function hideResults() {
+    document.getElementById('results').classList.remove('visible');
+    document.getElementById('empty-state').style.display = 'flex';
+  }
+
+  function hideError() {
+    const el = document.getElementById('error-box');
+    el.style.display = 'none';
+    el.textContent   = '';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-box');
+    el.textContent   = '❌ ' + msg;
+    el.style.display = 'block';
+    document.getElementById('empty-state').style.display = 'none';
+  }
+
+  // Allow Enter key in AI prompt
+  document.getElementById('ai-prompt').addEventListener('keydown', e => {
+    if (e.key === 'Enter') generateStrategy();
+  });
+</script>
+</body>
+</html>
